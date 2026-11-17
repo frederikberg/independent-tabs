@@ -13,14 +13,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const importFile = document.getElementById('import-file');
   const errorDiv = document.getElementById('error');
 
-  // Load current settings
-  const { settings = { newTabPosition: 'bottom', defaultAutoSave: false } } = await chrome.storage.local.get('settings');
-  positionSelect.value = settings.newTabPosition || 'bottom';
-  defaultAutosaveCheckbox.checked = settings.defaultAutoSave || false;
-  autoSaveOnGroupCreationCheckbox.checked = settings.autoSaveOnGroupCreation || false;
-  popupCloseOnRefocusCheckbox.checked = settings.popupCloseOnRefocus || false;
-  panelShortcutTogglesCheckbox.checked = settings.panelShortcutToggles || false;
-  panelReopenPauseInput.value = settings.panelReopenPause;
+  // The service worker keeps every setting in storage, so the stored values are complete; a
+  // restored backup shows up through the storage change.
+  function showSettings(settings) {
+    positionSelect.value = settings.newTabPosition;
+    defaultAutosaveCheckbox.checked = settings.defaultAutoSave;
+    autoSaveOnGroupCreationCheckbox.checked = settings.autoSaveOnGroupCreation;
+    popupCloseOnRefocusCheckbox.checked = settings.popupCloseOnRefocus;
+    panelShortcutTogglesCheckbox.checked = settings.panelShortcutToggles;
+    panelReopenPauseInput.value = settings.panelReopenPause;
+  }
+  showSettings((await chrome.storage.local.get('settings')).settings);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings?.newValue) showSettings(changes.settings.newValue);
+  });
 
   // Save settings helper
   async function saveSettings(updates) {
@@ -135,15 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Verify restore worked
       const verified = await chrome.storage.local.get(['savedSessions', 'items', 'customNames']);
-
-      // Reload settings display
-      const newSettings = backup.data.settings || { newTabPosition: 'bottom', defaultAutoSave: false };
-      positionSelect.value = newSettings.newTabPosition || 'bottom';
-      defaultAutosaveCheckbox.checked = newSettings.defaultAutoSave || false;
-      autoSaveOnGroupCreationCheckbox.checked = newSettings.autoSaveOnGroupCreation || false;
-      popupCloseOnRefocusCheckbox.checked = newSettings.popupCloseOnRefocus || false;
-      panelShortcutTogglesCheckbox.checked = newSettings.panelShortcutToggles || false;
-      panelReopenPauseInput.value = newSettings.panelReopenPause ?? '';
 
       // Show success with alert to ensure visibility
       const restoredItems = Array.isArray(verified.items) ? verified.items.length : 0;

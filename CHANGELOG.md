@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Commands *Activate the next tab in the list* and *Activate the previous tab in the list*: the list's own Ctrl+PageDown, through groups and across windows, without any list view open. They have no default key; assign one at `chrome://extensions/shortcuts`, set to *Global* to use them from any application
+
+### Fixed
+
+- Settings missing from storage, as after importing an older backup, get their defaults back
+
 ## [1.12.1] - 2026-11-11
 
 ### Changed

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { allTabIds, groupOfTab, insertTab, reconcile, removeTabs, sameItems } from '../../tab-items.js';
+import { allTabIds, groupOfTab, insertTab, neighbourTab, reconcile, removeTabs, sameItems } from '../../tab-items.js';
 
 const group = (id, tabs, extra = {}) => ({ group: id, name: id, color: '#2196f3', tabs, ...extra });
 const tabs = (...ids) => ids.map(id => ({ id }));
@@ -62,6 +62,31 @@ describe('reconcile', () => {
   test('an order that already matches comes back equal', () => {
     const items = [1, group('g', [2])];
     expect(sameItems(reconcile(items, tabs(2, 1)), items)).toBe(true);
+  });
+});
+
+describe('neighbourTab', () => {
+  const items = [1, group('g', [2, 3]), 4];
+
+  test('steps through groups in list order', () => {
+    expect(neighbourTab(items, 1, 1)).toBe(2);
+    expect(neighbourTab(items, 3, 1)).toBe(4);
+    expect(neighbourTab(items, 4, -1)).toBe(3);
+  });
+
+  test('wraps around at either end', () => {
+    expect(neighbourTab(items, 4, 1)).toBe(1);
+    expect(neighbourTab(items, 1, -1)).toBe(4);
+    expect(neighbourTab([7], 7, 1)).toBe(7);
+  });
+
+  test('from a tab outside the list, forward reaches the first and back the last', () => {
+    expect(neighbourTab(items, 99, 1)).toBe(1);
+    expect(neighbourTab(items, undefined, -1)).toBe(4);
+  });
+
+  test('an empty list has no neighbour', () => {
+    expect(neighbourTab([], 1, 1)).toBeNull();
   });
 });
 

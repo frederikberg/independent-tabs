@@ -61,6 +61,7 @@ To update, replace the folder's contents and click **Reload** on the extension's
 ## Use it
 
 - Alt+A opens the side panel or puts keyboard focus back into it, Alt+Y closes it, Alt+Q opens the same list in a popup window, Alt+S opens the quick search. Change them at `chrome://extensions/shortcuts`.
+- Two more commands step to the next or previous tab in your order, across windows and with no list open. They have no default key; assign one on the same page, and set it to *Global* to switch from any application.
 - Drag tabs to reorder them. Right-click a tab to rename it or create a group, ctrl-click or shift-click to select several.
 - Right-click a group header to save it as a session; the **Sessions** button at the bottom lists them.
 - The gear next to the search field opens the settings and the backup.

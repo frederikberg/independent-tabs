@@ -270,3 +270,74 @@ test('with the toggle setting, Alt+A closes an open side panel', async () => {
   await shortcut(p, 'Alt+A');
   expect(await sidePanelId(p)).toBeUndefined();
 });
+
+// Evaluates an expression in the service worker. Playwright's own worker handle stops answering
+// once the worker was restarted, so this attaches to the worker target running now.
+async function inWorker(p, expression) {
+  const cdp = await context.newCDPSession(p);
+  const { targetInfos } = await cdp.send('Target.getTargets');
+  const { targetId } = targetInfos.find(t => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extensionId}/`));
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: false });
+  const reply = new Promise(done => cdp.on('Target.receivedMessageFromTarget', ({ message }) => {
+    const { id, result } = JSON.parse(message);
+    if (id === 1) done(result);
+  }));
+  await cdp.send('Target.sendMessageToTarget', {
+    sessionId,
+    message: JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }),
+  });
+  const result = await reply;
+  await cdp.detach();
+  return result;
+}
+
+test('next and previous tab follow the list across groups and windows, wrap around, and keep up with quick presses', async () => {
+  const d = await driver();
+  const [one, two, three, firstWindow] = await d.evaluate(async (urls) => {
+    const one = await chrome.tabs.create({ url: urls[0], active: false });
+    const two = await chrome.tabs.create({ url: urls[1], active: false });
+    const other = await chrome.windows.create({ url: urls[2], focused: false });
+    return [one.id, two.id, other.tabs[0].id, one.windowId];
+  }, [1, 2, 3].map(page));
+  await sleep(300);
+  await d.evaluate(async ([one, two, three]) => {
+    await chrome.storage.local.set({ items: [three, { group: 'g1', name: 'G', color: '#2196f3', tabs: [one, two] }] });
+    await chrome.tabs.update(one, { active: true });
+  }, [one, two, three]);
+
+  // Headless Chromium does not move focus back to an older window, so this checks the tab only
+  const active = (id) => d.evaluate(async (id) => (await chrome.tabs.get(id)).active, id);
+
+  await inWorker(d, 'switchTab(1)');
+  expect(await active(two)).toBe(true);
+  // Past the end of the list into the first entry, which is in the other window
+  await inWorker(d, 'switchTab(1)');
+  expect(await d.evaluate(async (three) => {
+    const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+    return win.id === (await chrome.tabs.get(three)).windowId;
+  }, three)).toBe(true);
+  // Two presses before the first one has finished
+  await inWorker(d, 'Promise.all([switchTab(-1), switchTab(-1)])');
+  expect(await active(one)).toBe(true);
+
+  // Once the presses have settled, the last focused browser window's tab is the starting point,
+  // also from a popup window. The other window goes, as focus would not return from it.
+  await d.evaluate((three) => chrome.tabs.remove(three), three);
+  await sleep(1100);
+  await d.evaluate(() => chrome.windows.create({ url: 'about:blank', type: 'popup', focused: true }));
+  await inWorker(d, 'switchTab(1)');
+  const tab = await d.evaluate(async (two) => chrome.tabs.get(two), two);
+  expect(tab.active).toBe(true);
+  expect(tab.windowId).toBe(firstWindow);
+});
+
+test('settings written without some keys, as by an older backup, get the missing defaults back', async () => {
+  const d = await driver();
+  await d.evaluate(() => chrome.storage.local.set({ settings: { newTabPosition: 'top' } }));
+  await sleep(300);
+  const { settings } = await d.evaluate(() => chrome.storage.local.get('settings'));
+  expect(settings.newTabPosition).toBe('top');
+  expect(settings.panelReopenPause).toBe(100);
+  expect(settings.sessionSortOrder).toBe('modified');
+  await d.evaluate((s) => chrome.storage.local.set({ settings: { ...s, newTabPosition: 'bottom' } }), settings);
+});
