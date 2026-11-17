@@ -51,6 +51,12 @@
         "mac": "Alt+S"
       },
       "description": "Open quick search"
+    },
+    "next-tab": {
+      "description": "Activate the next tab in the list"
+    },
+    "previous-tab": {
+      "description": "Activate the previous tab in the list"
     }
   },
   "options_ui": {

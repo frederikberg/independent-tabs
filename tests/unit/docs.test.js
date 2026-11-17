@@ -21,8 +21,10 @@ test('every image and relative link in the README and docs resolves', () => {
   }
 });
 
-test('the shortcuts doc names every shortcut of the manifest', () => {
+test('the shortcuts doc names every command of the manifest, by its key or, without one, its description', () => {
   const shortcuts = read('docs/shortcuts.md');
   const { commands } = JSON.parse(read('manifest.json'));
-  for (const { suggested_key } of Object.values(commands)) expect(shortcuts).toContain(suggested_key.default);
+  for (const { suggested_key, description } of Object.values(commands)) {
+    expect(shortcuts).toContain(suggested_key?.default ?? description);
+  }
 });

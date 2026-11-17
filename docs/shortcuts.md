@@ -2,7 +2,7 @@
 
 ## Global
 
-Active in any browser window; change them at `chrome://extensions/shortcuts`.
+Active in any browser window; change them at `chrome://extensions/shortcuts`. There each one can also be set to *Global*, which makes it work while the browser is in the background.
 
 | Shortcut | Action |
 |----------|--------|
@@ -10,6 +10,10 @@ Active in any browser window; change them at `chrome://extensions/shortcuts`.
 | Alt+Y | Close the side panel |
 | Alt+Q | Open the list in a popup window, or bring it to the front. With the setting *Popup shortcut closes when focused* on, a second press closes it |
 | Alt+S | Open the quick search; a second press while it is focused closes it |
+| none | Activate the next tab in the list: the tab after the active one in your order, through groups and across windows, wrapping around at the end. Its window comes to the front. No list view needs to be open |
+| none | Activate the previous tab in the list, the same way backwards |
+
+The last two come without a key, since an extension can suggest only four; assign them on the shortcuts page. Set to *Global*, they switch tabs from any application.
 
 ## Tabs view
 

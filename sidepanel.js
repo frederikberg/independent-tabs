@@ -36,8 +36,8 @@ async function init() {
   items = stored.items || [];
   customNames = stored.customNames || {};
   savedSessions = stored.savedSessions || {};
-  sessionSortOrder = stored.settings?.sessionSortOrder || 'modified';
-  sessionSortAsc = stored.settings?.sessionSortAsc ?? false;
+  sessionSortOrder = stored.settings.sessionSortOrder;
+  sessionSortAsc = stored.settings.sessionSortAsc;
 
   // Query all normal browser windows (excludes PWAs, apps, popups)
   const tabs = await chrome.tabs.query({ windowType: 'normal' });
@@ -118,7 +118,7 @@ async function saveItems() {
 // Sync items with actual Chrome tabs; the service worker tracks them, this catches up on
 // anything it missed
 async function syncItemsWithTabs(tabs) {
-  const { settings = { newTabPosition: 'bottom' } } = await chrome.storage.local.get('settings');
+  const { settings } = await chrome.storage.local.get('settings');
   const next = reconcile(items, tabs, settings.newTabPosition);
   if (!sameItems(items, next)) {
     items = next;
@@ -656,7 +656,7 @@ async function createGroup(tabIds, name = 'New Group') {
   items.splice(insertIndex, 0, group);
 
   // Auto-save as session if setting is enabled
-  const { settings = {} } = await chrome.storage.local.get('settings');
+  const { settings } = await chrome.storage.local.get('settings');
   if (settings.autoSaveOnGroupCreation) {
     group.autoSave = true;
     await saveItems();
@@ -1409,8 +1409,8 @@ async function saveGroupAsSession(group) {
 
   // Set autoSave based on settings for new saves
   if (!isUpdate && group.autoSave === undefined) {
-    const { settings = {} } = await chrome.storage.local.get('settings');
-    group.autoSave = settings.defaultAutoSave || false;
+    const { settings } = await chrome.storage.local.get('settings');
+    group.autoSave = settings.defaultAutoSave;
   }
 
   const session = {
@@ -1439,8 +1439,8 @@ async function saveGroupAsNewSession(group) {
   const sessionId = crypto.randomUUID();
 
   // Set autoSave based on settings
-  const { settings = {} } = await chrome.storage.local.get('settings');
-  const autoSaveValue = settings.defaultAutoSave || false;
+  const { settings } = await chrome.storage.local.get('settings');
+  const autoSaveValue = settings.defaultAutoSave;
 
   // Capture current tab data
   const sessionTabs = group.tabs.map(tabId => {
@@ -1718,7 +1718,7 @@ function setupSortHandlers() {
   // Add sort field change handler
   document.getElementById('session-sort')?.addEventListener('change', async (e) => {
     sessionSortOrder = e.target.value;
-    const { settings = {} } = await chrome.storage.local.get('settings');
+    const { settings } = await chrome.storage.local.get('settings');
     settings.sessionSortOrder = sessionSortOrder;
     await chrome.storage.local.set({ settings });
     renderSessions();
@@ -1727,7 +1727,7 @@ function setupSortHandlers() {
   // Add sort direction toggle handler
   document.getElementById('session-sort-dir')?.addEventListener('click', async () => {
     sessionSortAsc = !sessionSortAsc;
-    const { settings = {} } = await chrome.storage.local.get('settings');
+    const { settings } = await chrome.storage.local.get('settings');
     settings.sessionSortAsc = sessionSortAsc;
     await chrome.storage.local.set({ settings });
     renderSessions();

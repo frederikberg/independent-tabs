@@ -12,6 +12,7 @@
 - Right-click a tab to rename it (a custom name shows in italics), reset the name, create a group, remove it from its group or close it.
 - Ctrl-click toggles and Shift-click selects a range; a selection can be dragged, grouped or closed together.
 - The search field above the list filters by title, URL and custom name.
+- Two shortcuts step to the next and the previous tab in the list, with no list view open: [Shortcuts](shortcuts.md#global).
 - New tabs join at the bottom or the top of the list, set in the settings. A tab opened from a grouped tab joins that group.
 
 ## Groups

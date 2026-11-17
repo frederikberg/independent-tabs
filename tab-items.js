@@ -61,10 +61,21 @@ function reconcile(items, tabs, position = 'bottom') {
   return result;
 }
 
+// The tab `step` entries after `tabId` in the list, through groups and wrapping around at either
+// end; null for an empty list. From a tab the list does not hold, a step forward reaches the
+// first tab and a step back the last.
+function neighbourTab(items, tabId, step) {
+  const ids = allTabIds(items);
+  if (ids.length === 0) return null;
+  const index = ids.indexOf(tabId);
+  const from = index !== -1 ? index : step > 0 ? -1 : 0;
+  return ids[(((from + step) % ids.length) + ids.length) % ids.length];
+}
+
 function sameItems(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { allTabIds, groupOfTab, insertTab, removeTabs, reconcile, sameItems };
+  module.exports = { allTabIds, groupOfTab, insertTab, removeTabs, reconcile, neighbourTab, sameItems };
 }

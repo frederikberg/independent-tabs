@@ -6,12 +6,18 @@ importScripts('tab-items.js');
 // Tab tracking lives here rather than in the pages: the worker is woken for every tab event,
 // while a side panel or popup only sees the tabs created while it is open.
 
-// The one source of each setting's default; an install or update writes the missing ones into
-// storage, so every reader finds a value there.
+// The one source of each setting's default; an install or update, and any write that leaves keys
+// out (a backup import), get the missing ones written into storage, so every reader finds a value
+// there.
 const DEFAULT_SETTINGS = {
   newTabPosition: 'bottom',
+  defaultAutoSave: false,
+  autoSaveOnGroupCreation: false,
+  popupCloseOnRefocus: false,
   panelShortcutToggles: false,
   panelReopenPause: 100,  // ms the side panel stays closed before the shortcut opens it again
+  sessionSortOrder: 'modified',
+  sessionSortAsc: false,
 };
 
 // One storage read-modify-write at a time; events arriving together would otherwise each read
@@ -119,7 +125,15 @@ chrome.storage.local.get('settings').then((stored) => {
   cachedSettings = { ...DEFAULT_SETTINGS, ...stored.settings };
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.settings) cachedSettings = { ...DEFAULT_SETTINGS, ...changes.settings.newValue };
+  if (area !== 'local' || !changes.settings) return;
+  const stored = changes.settings.newValue ?? {};
+  cachedSettings = { ...DEFAULT_SETTINGS, ...stored };
+  if (Object.keys(DEFAULT_SETTINGS).some(key => !(key in stored))) {
+    serialized(async () => {
+      const { settings } = await chrome.storage.local.get('settings');
+      await chrome.storage.local.set({ settings: { ...DEFAULT_SETTINGS, ...settings } });
+    });
+  }
 });
 
 // Each open side panel holds a port and pings over it, which keeps the worker, and with it the
@@ -178,6 +192,39 @@ chrome.commands.onCommand.addListener((command, tab) => {
   }
 });
 
+// Activates the tab `step` entries away in the list from the active tab of the last focused
+// browser window, and brings that tab's window to the front: the list's own Ctrl+PageDown, across
+// windows. A global shortcut fires while the browser is in the background too, then without a
+// tab, so the current tab is looked up here. The browser reports a window as focused only some
+// time after it was asked to focus it, if at all, so a press within a second of the previous one
+// continues from the tab that one activated, while it is still active.
+const SWITCH_SETTLE_MS = 1000;
+let lastSwitch = null;  // { tabId, at }
+
+function switchTab(step) {
+  return serialized(async () => {
+    let current;
+    if (lastSwitch && performance.now() - lastSwitch.at < SWITCH_SETTLE_MS) {
+      current = await chrome.tabs.get(lastSwitch.tabId).catch(() => null);
+    }
+    if (!current?.active) {
+      const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+      [current] = await chrome.tabs.query({ active: true, windowId: win.id });
+    }
+    const { items = [] } = await chrome.storage.local.get('items');
+    const target = neighbourTab(items, current?.id, step);
+    if (target === null) return;
+    const tab = await chrome.tabs.update(target, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+    lastSwitch = { tabId: target, at: performance.now() };
+  });
+}
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'next-tab') switchTab(1);
+  else if (command === 'previous-tab') switchTab(-1);
+});
+
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'open-quicksearch') {
     const { quicksearchWindowId } = await chrome.storage.session.get('quicksearchWindowId');
@@ -211,8 +258,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       try {
         const existing = await chrome.windows.get(popupWindowId);
         if (existing.focused) {
-          const { settings = {} } = await chrome.storage.local.get('settings');
-          if (settings.popupCloseOnRefocus) {
+          if (cachedSettings.popupCloseOnRefocus) {
             await chrome.windows.remove(popupWindowId);
             await chrome.storage.session.remove('popupWindowId');
           }
